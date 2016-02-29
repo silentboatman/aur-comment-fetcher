@@ -16,34 +16,32 @@ class Comment(object):
 
 
 def query(package):
-    query = AUR.RPC.aur_query('search',package)[0]
+    query = list(AUR.RPC.aur_query('search',package))
     if len(query) == 0:
         raise click.ClickException('couldn\'t find any package with name "{0}"'
                         .format(package))
-    elif len(query) > 1:
-        # test if the exact name is under the found then we won't ask
-        if package in [x['Name'] for x in query]:
-            return package
+    number = 0
+    if len(query) > 1:
         for i,x in enumerate(query):
             print('\033[33m\033[1m{0}\033[0m: \033[33m{1} \033[32m{2}'
-                  .format(i,x['Name'],x['Version']))
+                  .format(i+1,x['Name'],x['Version']))
             print('\t\033[0m{0}'.format(x['Description']))
-        number = click.prompt('\nspecify the number of the package', type=int)
-        return query[number]['Name']
-    else:
-        return package
+        number = click.prompt('\nspecify the number of the package', type=click.IntRange(1, len(query))) - 1
+
+    return query[number]['Name']
 
 def get(package):
     res = requests.get(BASE_URL+package+'/?comments=all',verify=True)
     if res.status_code != 200:
-        res = requests.get(BASE_URL+query(package)+'/?comments=all',verify=True)
+        package = query(package)
+        res = requests.get(BASE_URL+package+'/?comments=all',verify=True)
         if res.status_code != 200:
             raise click.ClickException('couldn\'t fetch comments for package "{0}"'
                             .format(package))
-    return res
+    return package,res
 
 def fetch_comments(package,number=5,get_all=False):
-    res = get(package)
+    package,res = get(package)
     soup = BeautifulSoup(res.content, 'lxml')
     allNews = soup.findAll('div',attrs={'id':'news'})
     comments = []

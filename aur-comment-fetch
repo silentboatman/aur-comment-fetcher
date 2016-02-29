@@ -40,7 +40,7 @@ def get(package):
                             .format(package))
     return package,res
 
-def fetch_comments(package,number=5,get_all=False):
+def fetch_comments(package,number=5):
     package,res = get(package)
     soup = BeautifulSoup(res.content, 'lxml')
     allNews = soup.findAll('div',attrs={'id':'news'})
@@ -53,7 +53,7 @@ def fetch_comments(package,number=5,get_all=False):
         timestamps = news.findAll('h4')
         contents = news.findAll('div',attrs={'class':'article-content'})
         for author,timestamp,content in zip(authors,timestamps,contents):
-            if not get_all and i >= number:
+            if str(i) == number:
                 return package,comments
             comments.append(Comment(author.text.strip().split()[0],
                 " ".join(timestamp.text.strip().split()[3:5]),
@@ -65,18 +65,18 @@ def fetch_comments(package,number=5,get_all=False):
 
 @click.command()
 @click.argument('package')
-@click.option('-a','--all','get_all',is_flag=True,help='fetch all comments')
-@click.option('-n','--number',type=int,default=5,help='specify number of comments to fetch')
+@click.option('-a','--all','number',flag_value='-1',help='fetch all comments')
+@click.option('-n','--number',default="5",help='specify number of comments to fetch')
 @click.option('-r','--reverse','reverse_order',is_flag=True,help='show comments in reversed order')
-def main(package,get_all,number,reverse_order):
-    package,comments = fetch_comments(package,number=number,get_all=get_all)
+def main(package,number,reverse_order):
+    package,comments = fetch_comments(package,number)
     if len(comments) == 0:
         print('\033[31m\nno comments available for package "{0}"\n full info at {1}\n\033[0m'
             .format(package,BASE_URL+package))
         return
     else:
         print('\033[35m\n{4} {1} comments for package "{0}"{3}:\n full info at {2}\n\033[0m'
-            .format(package,len(comments),BASE_URL+package,' (most recent last)' if reverse_order else '','All' if get_all else 'Last'))
+            .format(package,len(comments),BASE_URL+package,' (most recent last)' if reverse_order else '','All' if number == "-1" else 'Last'))
     for comment in (reversed(comments) if reverse_order else comments):
         if comment.pinned and reverse_order:
             print()
